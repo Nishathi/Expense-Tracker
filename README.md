@@ -94,14 +94,6 @@ python -m http.server 3000
 
 ---
 
-## Interview Points to Mention
 
-1. REST API design with FastAPI
-2. JWT-based authentication & authorization
-3. SQLAlchemy ORM with SQLite
-4. Password hashing with bcrypt
-5. CORS middleware configuration
-6. Pydantic data validation
-7. Chart.js data visualization
 8. CSV export functionality
 9. Responsive single-page UI without any framework
