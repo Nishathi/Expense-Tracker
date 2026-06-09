@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SpendWise — Expense Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3248;
+  --accent: #00d4a1;
+  --accent2: #5b6eff;
+  --danger: #ff5370;
+  --warning: #ffbc42;
+  --text: #e8eaf6;
+  --muted: #7b82a8;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── Auth Screen ── */
+#authScreen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 30% 20%, #1a2a4a 0%, #0f1117 60%);
+}
+.auth-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2.5rem; width: 400px;
+}
+.auth-logo { font-size: 28px; font-weight: 600; color: var(--accent); margin-bottom: 0.25rem; }
+.auth-sub { color: var(--muted); font-size: 14px; margin-bottom: 2rem; }
+.auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 1.5rem; }
+.auth-tab { flex: 1; padding: 8px; border: none; background: transparent; color: var(--muted); border-radius: 8px; font-family: var(--font); font-size: 14px; cursor: pointer; }
+.auth-tab.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+.field input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; color: var(--text);
+  font-family: var(--font); font-size: 14px; outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus { border-color: var(--accent); }
+.btn-primary {
+  width: 100%; padding: 11px; background: var(--accent); color: #0f1117;
+  border: none; border-radius: 10px; font-family: var(--font); font-size: 15px;
+  font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.auth-error { color: var(--danger); font-size: 13px; margin-bottom: 1rem; display: none; }
+
+/* ── App Layout ── */
+#appScreen { display: none; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+  padding: 1.5rem 0; display: flex; flex-direction: column; position: fixed;
+  top: 0; left: 0; height: 100vh;
+}
+.sidebar-logo { font-size: 20px; font-weight: 600; color: var(--accent); padding: 0 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+.sidebar-logo span { color: var(--muted); font-weight: 300; }
+.nav { padding: 1rem 0; flex: 1; }
+.nav-link {
+  display: flex; align-items: center; gap: 10px; padding: 10px 1.25rem;
+  color: var(--muted); font-size: 14px; cursor: pointer; transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.nav-link:hover { color: var(--text); background: var(--surface2); }
+.nav-link.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,161,0.07); }
+.nav-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-user {
+  padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent2), var(--accent));
+  display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff;
+}
+.user-name { font-size: 13px; font-weight: 500; }
+.user-role { font-size: 11px; color: var(--muted); }
+.logout-btn { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+.logout-btn:hover { color: var(--danger); }
+
+/* ── Main ── */
+.main { margin-left: 220px; flex: 1; padding: 2rem; }
+.page { display: none; }
+.page.active { display: block; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.page-title { font-size: 22px; font-weight: 600; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* ── Metric Cards ── */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.metric-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1.25rem;
+}
+.metric-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.metric-value { font-size: 26px; font-weight: 600; font-family: var(--mono); }
+.metric-value.green { color: var(--accent); }
+.metric-value.red { color: var(--danger); }
+.metric-value.blue { color: var(--accent2); }
+.metric-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 6px; padding: 3px 8px; border-radius: 20px; }
+.metric-badge.up { background: rgba(0,212,161,0.12); color: var(--accent); }
+.metric-badge.down { background: rgba(255,83,112,0.12); color: var(--danger); }
+
+/* ── Charts Row ── */
+.charts-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+.chart-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1.25rem;
+}
+.chart-title { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: var(--text); }
+.chart-wrap { position: relative; height: 200px; }
+
+/* ── Expenses Table ── */
+.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.table-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid var(--border); }
+.filter-row { display: flex; gap: 8px; }
+.filter-select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 6px 12px; font-family: var(--font); font-size: 13px; outline: none;
+}
+.exp-table { width: 100%; border-collapse: collapse; }
+.exp-table th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 1.25rem; text-align: left; border-bottom: 1px solid var(--border); }
+.exp-table td { padding: 12px 1.25rem; font-size: 14px; border-bottom: 1px solid var(--border); }
+.exp-table tr:last-child td { border-bottom: none; }
+.exp-table tr:hover td { background: var(--surface2); }
+.cat-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+}
+.amount-cell { font-family: var(--mono); font-weight: 500; color: var(--danger); }
+.action-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; border-radius: 6px; }
+.action-btn:hover { color: var(--text); background: var(--surface2); }
+.empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+
+/* ── Add Expense Button ── */
+.btn-add {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #0f1117; border: none;
+  border-radius: 10px; padding: 9px 18px; font-family: var(--font);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+}
+.btn-add:hover { opacity: 0.88; }
+.btn-export {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 18px; font-family: var(--font);
+  font-size: 14px; cursor: pointer;
+}
+.btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2rem; width: 460px;
+}
+.modal-title { font-size: 18px; font-weight: 600; margin-bottom: 1.5rem; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; }
+.btn-cancel {
+  background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 20px; font-family: var(--font); font-size: 14px; cursor: pointer;
+}
+.toast {
+  position: fixed; bottom: 2rem; right: 2rem; background: var(--surface);
+  border: 1px solid var(--accent); border-radius: 12px; padding: 12px 20px;
+  font-size: 14px; color: var(--accent); display: none; z-index: 200;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<!-- ── AUTH ── -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">SpendWise</div>
+    <div class="auth-sub">Track every rupee, grow every saving.</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchTab('register')">Register</button>
+    </div>
+    <div id="authError" class="auth-error"></div>
+    <div id="loginForm">
+      <div class="field"><label>Username</label><input id="loginUser" type="text" placeholder="your_username"/></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"/></div>
+      <button class="btn-primary" onclick="doLogin()">Sign in →</button>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div class="field"><label>Username</label><input id="regUser" type="text" placeholder="choose_username"/></div>
+      <div class="field"><label>Email</label><input id="regEmail" type="email" placeholder="you@email.com"/></div>
+      <div class="field"><label>Password</label><input id="regPass" type="password" placeholder="••••••••"/></div>
+      <button class="btn-primary" onclick="doRegister()">Create account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="appScreen">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">Spend<span>Wise</span></div>
+      <nav class="nav">
+        <div class="nav-link active" onclick="showPage('dashboard')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </div>
+        <div class="nav-link" onclick="showPage('expenses')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Expenses
+        </div>
+        <div class="nav-link" onclick="showPage('reports')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Reports
+        </div>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div class="user-name" id="userName">User</div>
+          <div class="user-role">Personal</div>
+        </div>
+        <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-sub" id="dashDate">June 2026</div>
+          </div>
+          <button class="btn-add" onclick="openModal()">+ Add Expense</button>
+        </div>
+
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">Total Spent</div>
+            <div class="metric-value red" id="m-total">₹0</div>
+            <div class="metric-badge down" id="m-total-badge">This month</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Transactions</div>
+            <div class="metric-value blue" id="m-count">0</div>
+            <div class="metric-badge up">All time</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Avg per day</div>
+            <div class="metric-value" id="m-avg">₹0</div>
+            <div class="metric-badge up">This month</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Top Category</div>
+            <div class="metric-value green" id="m-topcat" style="font-size:18px">—</div>
+            <div class="metric-badge up">Highest spend</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Monthly spending trend</div>
+            <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">By category</div>
+            <div class="chart-wrap"><canvas id="doughnutChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <div style="font-size:14px;font-weight:500;">Recent expenses</div>
+          </div>
+          <table class="exp-table">
+            <thead><tr>
+              <th>Title</th><th>Category</th><th>Date</th><th>Amount</th>
+            </tr></thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Expenses Page -->
+      <div class="page" id="page-expenses">
+        <div class="page-header">
+          <div>
+            <div class="page-title">All Expenses</div>
+            <div class="page-sub">Manage your spending</div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+            <button class="btn-add" onclick="openModal()">+ Add Expense</button>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="filter-row">
+              <select class="filter-select" id="filterCat" onchange="renderExpenses()">
+                <option value="">All categories</option>
+                <option>Food</option><option>Transport</option><option>Shopping</option>
+                <option>Bills</option><option>Health</option><option>Entertainment</option><option>Other</option>
+              </select>
+            </div>
+            <div style="font-size:13px;color:var(--muted)" id="expCount">0 records</div>
+          </div>
+          <table class="exp-table">
+            <thead><tr>
+              <th>Title</th><th>Category</th><th>Date</th><th>Note</th><th>Amount</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Reports Page -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Reports</div>
+            <div class="page-sub">Visual spending analysis</div>
+          </div>
+        </div>
+        <div class="charts-row" style="grid-template-columns:1fr 1fr;">
+          <div class="chart-card">
+            <div class="chart-title">Spending by category (bar)</div>
+            <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Category breakdown (pie)</div>
+            <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card" style="margin-top:1rem;">
+          <div class="chart-title">Category totals</div>
+          <div id="catTable"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── Modal ── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Add Expense</div>
+    <div class="field"><label>Title</label><input id="inp-title" type="text" placeholder="e.g. Zomato order"/></div>
+    <div class="modal-grid">
+      <div class="field"><label>Amount (₹)</label><input id="inp-amount" type="number" placeholder="500" min="0"/></div>
+      <div class="field"><label>Category</label>
+        <select id="inp-category" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;font-family:var(--font);font-size:14px;outline:none;">
+          <option>Food</option><option>Transport</option><option>Shopping</option>
+          <option>Bills</option><option>Health</option><option>Entertainment</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-grid">
+      <div class="field"><label>Date</label><input id="inp-date" type="date"/></div>
+      <div class="field"><label>Note (optional)</label><input id="inp-note" type="text" placeholder="Any note..."/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" style="width:auto;padding:9px 24px;" onclick="saveExpense()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "http://localhost:8000";
+let token = localStorage.getItem("sw_token") || "";
+let currentUser = null;
+let expenses = [];
+let editingId = null;
+let lineChart, doughnutChart, barChart, pieChart;
+
+const CAT_COLORS = {
+  Food:"#00d4a1", Transport:"#5b6eff", Shopping:"#ff5370",
+  Bills:"#ffbc42", Health:"#a78bfa", Entertainment:"#fb923c", Other:"#64748b"
+};
+
+// ── Auth ──────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".auth-tab").forEach((t,i) => t.classList.toggle("active", (i===0&&tab==="login")||(i===1&&tab==="register")));
+  document.getElementById("loginForm").style.display = tab==="login" ? "block" : "none";
+  document.getElementById("registerForm").style.display = tab==="register" ? "block" : "none";
+  document.getElementById("authError").style.display = "none";
+}
+
+async function doLogin() {
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  if (!username || !password) return showAuthError("Fill all fields");
+  try {
+    const form = new FormData();
+    form.append("username", username); form.append("password", password);
+    const res = await fetch(`${API}/auth/login`, { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) return showAuthError(data.detail || "Login failed");
+    token = data.access_token;
+    localStorage.setItem("sw_token", token);
+    await loadApp();
+  } catch { showAuthError("Cannot connect to server. Make sure backend is running."); }
+}
+
+async function doRegister() {
+  const username = document.getElementById("regUser").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const password = document.getElementById("regPass").value;
+  if (!username || !email || !password) return showAuthError("Fill all fields");
+  try {
+    const res = await fetch(`${API}/auth/register`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) return showAuthError(data.detail || "Registration failed");
+    showAuthError("Account created! Please login.");
+    document.getElementById("authError").style.color = "var(--accent)";
+    document.getElementById("authError").style.display = "block";
+    switchTab("login");
+  } catch { showAuthError("Cannot connect to server."); }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  el.textContent = msg; el.style.display = "block"; el.style.color = "var(--danger)";
+}
+
+async function loadApp() {
+  try {
+    const res = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) { logout(); return; }
+    currentUser = await res.json();
+    document.getElementById("userName").textContent = currentUser.username;
+    document.getElementById("userAvatar").textContent = currentUser.username[0].toUpperCase();
+    document.getElementById("authScreen").style.display = "none";
+    document.getElementById("appScreen").style.display = "block";
+    const now = new Date();
+    document.getElementById("dashDate").textContent = now.toLocaleDateString("en-IN", { month:"long", year:"numeric" });
+    await fetchExpenses();
+    renderDashboard();
+  } catch { logout(); }
+}
+
+function logout() {
+  token = ""; localStorage.removeItem("sw_token");
+  document.getElementById("authScreen").style.display = "flex";
+  document.getElementById("appScreen").style.display = "none";
+}
+
+// ── API Calls ─────────────────────────────────────────────
+async function fetchExpenses() {
+  try {
+    const res = await fetch(`${API}/expenses`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) { logout(); return; }
+    expenses = await res.json();
+  } catch { showToast("Cannot reach server"); }
+}
+
+async function saveExpense() {
+  const title    = document.getElementById("inp-title").value.trim();
+  const amount   = parseFloat(document.getElementById("inp-amount").value);
+  const category = document.getElementById("inp-category").value;
+  const date     = document.getElementById("inp-date").value;
+  const note     = document.getElementById("inp-note").value.trim();
+  if (!title || !amount || !date) return showToast("Fill required fields");
+
+  const body = JSON.stringify({ title, amount, category, date, note: note || null });
+  const url  = editingId ? `${API}/expenses/${editingId}` : `${API}/expenses`;
+  const method = editingId ? "PUT" : "POST";
+
+  try {
+    const res = await fetch(url, { method, headers: { "Content-Type":"application/json", Authorization:`Bearer ${token}` }, body });
+    if (!res.ok) { showToast("Error saving"); return; }
+    closeModal();
+    await fetchExpenses();
+    renderDashboard();
+    renderExpenses();
+    renderReports();
+    showToast(editingId ? "Expense updated!" : "Expense added!");
+  } catch { showToast("Server error"); }
+}
+
+async function deleteExpense(id) {
+  if (!confirm("Delete this expense?")) return;
+  try {
+    await fetch(`${API}/expenses/${id}`, { method:"DELETE", headers:{ Authorization:`Bearer ${token}` } });
+    await fetchExpenses();
+    renderDashboard(); renderExpenses(); renderReports();
+    showToast("Expense deleted");
+  } catch { showToast("Error"); }
+}
+
+function editExpense(id) {
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById("modalTitle").textContent = "Edit Expense";
+  document.getElementById("inp-title").value    = e.title;
+  document.getElementById("inp-amount").value   = e.amount;
+  document.getElementById("inp-category").value = e.category;
+  document.getElementById("inp-date").value     = e.date;
+  document.getElementById("inp-note").value     = e.note || "";
+  document.getElementById("modalOverlay").classList.add("open");
+}
+
+// ── Render ────────────────────────────────────────────────
+function renderDashboard() {
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const days  = new Date().getDate();
+  document.getElementById("m-total").textContent = "₹" + Math.round(total).toLocaleString("en-IN");
+  document.getElementById("m-count").textContent = expenses.length;
+  document.getElementById("m-avg").textContent   = "₹" + Math.round(total / (days || 1)).toLocaleString("en-IN");
+
+  const cats = getCatTotals();
+  const topCat = Object.entries(cats).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById("m-topcat").textContent = topCat ? topCat[0] : "—";
+
+  const tbody = document.getElementById("recentBody");
+  tbody.innerHTML = expenses.slice(0,5).map(e => `
+    <tr>
+      <td>${e.title}</td>
+      <td><span class="cat-badge" style="background:${CAT_COLORS[e.category]}22;color:${CAT_COLORS[e.category]}">${e.category}</span></td>
+      <td style="color:var(--muted);font-size:13px">${e.date}</td>
+      <td class="amount-cell">-₹${e.amount.toLocaleString("en-IN")}</td>
+    </tr>`).join("") || `<tr><td colspan="4"><div class="empty-state">No expenses yet. Add your first one!</div></td></tr>`;
+
+  drawLineChart();
+  drawDoughnut();
+}
+
+function renderExpenses() {
+  const cat = document.getElementById("filterCat").value;
+  const filtered = cat ? expenses.filter(e => e.category === cat) : expenses;
+  document.getElementById("expCount").textContent = filtered.length + " records";
+  document.getElementById("expBody").innerHTML = filtered.map(e => `
+    <tr>
+      <td>${e.title}</td>
+      <td><span class="cat-badge" style="background:${CAT_COLORS[e.category]}22;color:${CAT_COLORS[e.category]}">${e.category}</span></td>
+      <td style="color:var(--muted);font-size:13px">${e.date}</td>
+      <td style="color:var(--muted);font-size:13px">${e.note || "—"}</td>
+      <td class="amount-cell">-₹${e.amount.toLocaleString("en-IN")}</td>
+      <td>
+        <button class="action-btn" onclick="editExpense(${e.id})" title="Edit">✏️</button>
+        <button class="action-btn" onclick="deleteExpense(${e.id})" title="Delete">🗑️</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="6"><div class="empty-state">No expenses found.</div></td></tr>`;
+}
+
+function renderReports() {
+  const cats = getCatTotals();
+  const total = Object.values(cats).reduce((s,v) => s+v, 0);
+  drawBar(cats);
+  drawPie(cats);
+  document.getElementById("catTable").innerHTML = `
+    <table class="exp-table" style="margin-top:0">
+      <thead><tr><th>Category</th><th>Total</th><th>% of spend</th></tr></thead>
+      <tbody>${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => `
+        <tr>
+          <td><span class="cat-badge" style="background:${CAT_COLORS[cat]}22;color:${CAT_COLORS[cat]}">${cat}</span></td>
+          <td class="amount-cell">₹${Math.round(amt).toLocaleString("en-IN")}</td>
+          <td style="color:var(--muted)">${total ? Math.round(amt/total*100) : 0}%</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+function getCatTotals() {
+  const t = {};
+  expenses.forEach(e => { t[e.category] = (t[e.category] || 0) + e.amount; });
+  return t;
+}
+
+// ── Charts ────────────────────────────────────────────────
+const chartOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: "#7b82a8", font: { family: "DM Sans" } } } },
+  scales: {
+    x: { ticks: { color: "#7b82a8" }, grid: { color: "#2e3248" } },
+    y: { ticks: { color: "#7b82a8" }, grid: { color: "#2e3248" } }
+  }
+};
+
+function drawLineChart() {
+  const monthly = {};
+  expenses.forEach(e => {
+    const m = e.date.substring(0,7);
+    monthly[m] = (monthly[m] || 0) + e.amount;
+  });
+  const labels = Object.keys(monthly).sort();
+  const data   = labels.map(k => Math.round(monthly[k]));
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById("lineChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{ label:"Spent (₹)", data, borderColor:"#00d4a1", backgroundColor:"rgba(0,212,161,0.1)", tension:0.4, fill:true, pointBackgroundColor:"#00d4a1" }]
+    },
+    options: { ...chartOpts }
+  });
+}
+
+function drawDoughnut() {
+  const cats = getCatTotals();
+  if (doughnutChart) doughnutChart.destroy();
+  doughnutChart = new Chart(document.getElementById("doughnutChart"), {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(cats),
+      datasets: [{ data: Object.values(cats).map(v => Math.round(v)), backgroundColor: Object.keys(cats).map(k => CAT_COLORS[k] || "#64748b"), borderWidth:0 }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"right", labels:{ color:"#7b82a8", font:{family:"DM Sans"}, boxWidth:12 } } }, cutout:"65%" }
+  });
+}
+
+function drawBar(cats) {
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById("barChart"), {
+    type: "bar",
+    data: {
+      labels: Object.keys(cats),
+      datasets: [{ label:"Amount (₹)", data: Object.values(cats).map(v => Math.round(v)), backgroundColor: Object.keys(cats).map(k => CAT_COLORS[k] || "#64748b"), borderRadius:6 }]
+    },
+    options: { ...chartOpts }
+  });
+}
+
+function drawPie(cats) {
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById("pieChart"), {
+    type: "pie",
+    data: {
+      labels: Object.keys(cats),
+      datasets: [{ data: Object.values(cats).map(v => Math.round(v)), backgroundColor: Object.keys(cats).map(k => CAT_COLORS[k] || "#64748b"), borderWidth:0 }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"right", labels:{ color:"#7b82a8", font:{family:"DM Sans"}, boxWidth:12 } } } }
+  });
+}
+
+// ── Navigation ────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+  event.currentTarget.classList.add("active");
+  if (name === "expenses") renderExpenses();
+  if (name === "reports") { renderReports(); }
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function openModal() {
+  editingId = null;
+  document.getElementById("modalTitle").textContent = "Add Expense";
+  document.getElementById("inp-title").value = "";
+  document.getElementById("inp-amount").value = "";
+  document.getElementById("inp-note").value = "";
+  document.getElementById("inp-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("modalOverlay").classList.add("open");
+}
+function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); }
+document.getElementById("modalOverlay").addEventListener("click", e => { if(e.target===e.currentTarget) closeModal(); });
+
+// ── Export CSV ────────────────────────────────────────────
+function exportCSV() {
+  const rows = [["Title","Category","Date","Amount","Note"]];
+  expenses.forEach(e => rows.push([e.title, e.category, e.date, e.amount, e.note||""]));
+  const csv = rows.map(r => r.join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  a.download = "expenses.csv"; a.click();
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 2500);
+}
+
+// ── Init ──────────────────────────────────────────────────
+if (token) loadApp();
+</script>
+</body>
+</html>
+Base.metadata.create_all(bind=engine)
